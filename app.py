@@ -7,6 +7,25 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import threading
 
+def auto_select_input_device():
+    """
+    Sélectionne automatiquement le premier périphérique d'entrée disponible.
+    Retourne l'index du périphérique ou None si aucun n'est trouvé.
+    """
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        if device['max_input_channels'] > 0:
+            print(f"Périphérique d'entrée sélectionné automatiquement : Index {i} - {device['name']}")
+            return i
+    return None
+
+# Sélection automatique du périphérique d'entrée
+input_device_index = auto_select_input_device()
+if input_device_index is not None:
+    sd.default.device = (input_device_index, None)
+else:
+    raise RuntimeError("Aucun périphérique d'entrée disponible.")
+
 # Paramètres globaux
 sample_rate = 22050            # Fréquence d'échantillonnage (Hz)
 audio_buffer = []              # Buffer pour stocker les données audio
@@ -24,6 +43,8 @@ def audio_callback(indata, frames, time, status):
     data = indata[:, 0]  # Extraction du canal mono
     with buffer_lock:
         audio_buffer.extend(data.tolist())
+    # Débogage : affiche la taille du bloc audio reçu
+    print("Bloc audio reçu, taille :", len(data))
 
 def classify_voice(min_freq, max_freq):
     """
@@ -60,6 +81,7 @@ def start_recording():
     Le buffer est réinitialisé et le guide utilisateur s'actualise.
     """
     global stream, audio_buffer
+    print("Tentative de démarrage de l'enregistrement...")
     with buffer_lock:
         audio_buffer = []  # Réinitialisation du buffer
     try:
@@ -74,8 +96,10 @@ def start_recording():
             "4. Variez l'intensité (du pianissimo au fortissimo) si possible.\n"
             "5. Cliquez sur 'Terminer l'enregistrement' une fois terminé."
         ))
+        print("Enregistrement démarré.")
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible de démarrer l'enregistrement : {e}")
+        print("Erreur lors du démarrage de l'enregistrement :", e)
 
 def stop_recording():
     """
